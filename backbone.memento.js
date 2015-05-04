@@ -9,9 +9,7 @@
 (function() {
   'use strict';
 
-  var Memento,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __hasProp = {}.hasOwnProperty;
+  var Memento;
 
   define(['backbone', 'underscore'], function (Backbone, _) {
     'use strict';
@@ -26,38 +24,40 @@
       var serializer = new Serializer(structure, config);
       var mementoStack = new MementoStack(structure, config);
 
-      var restoreState = function (previousState, restoreConfig){
-        if (!previousState){ return; }
+      var restoreState = function (previousState, restoreConfig) {
+        if (!previousState) {
+          return;
+        }
         serializer.deserialize(previousState, restoreConfig);
       };
 
-      this.previousState = function(){
-          return mementoStack.previous();
+      this.previousState = function() {
+        return mementoStack.previous();
       };
 
-      this.changes = function(){
-          var currentState = this.attributes;
-          var previousState = this.previousState();
+      this.changes = function() {
+        var currentState = this.attributes;
+        var previousState = this.previousState();
 
-          return deepDiffMapper.map(currentState, previousState);
+        return deepDiffMapper.map(currentState, previousState);
       };
 
-      this.store = function(){
+      this.store = function() {
         var currentState = serializer.serialize();
         mementoStack.push(currentState);
       };
 
-      this.restore = function(restoreConfig){
+      this.restore = function(restoreConfig) {
         var previousState = mementoStack.pop();
         restoreState(previousState, restoreConfig);
       };
 
-      this.restart = function(restoreConfig){
+      this.restart = function(restoreConfig) {
         var previousState = mementoStack.rewind();
         restoreState(previousState, restoreConfig);
       };
 
-      this.consolidate = function(restoreConfig){
+      this.consolidate = function(restoreConfig) {
         mementoStack = new MementoStack(structure, config);
         this.store();
       };
@@ -67,62 +67,68 @@
     // TypeHelper: a consistent API for removing attributes and
     // restoring attributes, on models and collections
     // ----------------------------
-    var TypeHelper = function(structure){
+    var TypeHelper = function(structure) {
       if (structure instanceof Backbone.Model) {
-        this.removeAttr = function(data){ structure.unset(data); };
-        this.restore = function(data){ structure.set(data); };
+        this.removeAttr = function(data) {
+          structure.unset(data);
+        };
+        this.restore = function(data) {
+          structure.set(data);
+        };
       } else {
-        this.removeAttr = function(data){ structure.remove(data); };
-        this.restore = function(data){ structure.reset(data); };
+        this.removeAttr = function(data) {
+          structure.remove(data);
+        };
+        this.restore = function(data) {
+          structure.reset(data);
+        };
       }
     };
 
     // ----------------------------
     // Serializer: serializer and deserialize model and collection state
     // ----------------------------
-    var Serializer = function(structure, config){
+    var Serializer = function(structure, config) {
       var typeHelper = new TypeHelper(structure);
 
-      function dropIgnored(attrs, restoreConfig){
+      function dropIgnored(attrs, restoreConfig) {
         attrs = _.clone(attrs);
-        if (restoreConfig.hasOwnProperty('ignore') && restoreConfig.ignore.length > 0){
-          for(var index in restoreConfig.ignore){
+        if (_.has(restoreConfig, 'ignore') && restoreConfig.ignore.length > 0) {
+          for (var index in restoreConfig.ignore) {
             var ignore = restoreConfig.ignore[index];
             delete attrs[ignore];
           }
         }
         return attrs;
-      }
+      };
 
-      function getAddedAttrDiff(newAttrs, oldAttrs){
+      function getAddedAttrDiff(newAttrs, oldAttrs) {
         var removedAttrs = [];
 
         // guard clause to ensure we have attrs to compare
-        if (!newAttrs || !oldAttrs){
+        if (!newAttrs || !oldAttrs) {
           return removedAttrs;
         }
 
         // if the attr is found in the old set but not in
         // the new set, then it was remove in the new set
-        for (var attr in oldAttrs){
-          if (oldAttrs.hasOwnProperty(attr)){
-            if (!newAttrs.hasOwnProperty(attr)){
-              removedAttrs.push(attr);
-            }
+        for (var attr in oldAttrs) {
+          if (_.has(oldAttrs, attr) && !_.has(newAttrs, attr)) {
+            removedAttrs.push(attr);
           }
         }
 
         return removedAttrs;
-      }
+      };
 
-      function removeAttributes(structure, attrsToRemove){
-        for (var index in attrsToRemove){
+      function removeAttributes(structure, attrsToRemove) {
+        for (var index in attrsToRemove) {
           var attr = attrsToRemove[index];
           typeHelper.removeAttr(attr);
         }
-      }
+      };
 
-      function restoreState(previousState, restoreConfig){
+      function restoreState(previousState, restoreConfig) {
         var oldAttrs = dropIgnored(previousState, restoreConfig);
 
         //get the current state
@@ -134,19 +140,18 @@
         removeAttributes(structure, removedAttrs);
 
         typeHelper.restore(oldAttrs);
-      }
+      };
 
-      this.serialize = function(){
+      this.serialize = function() {
         var attrs = structure.toJSON();
         attrs = dropIgnored(attrs, config);
         return attrs;
       };
 
-      this.deserialize = function(previousState, restoreConfig){
+      this.deserialize = function(previousState, restoreConfig) {
         restoreConfig = _.extend({}, config, restoreConfig);
         restoreState(previousState, restoreConfig);
       };
-        
     };
 
     // ----------------------------
@@ -155,16 +160,16 @@
     var MementoStack = function(structure, config) {
       var attributeStack;
 
-      function initialize(){
+      function initialize() {
         attributeStack = [];
-      }
+      };
 
-      this.push = function(attrs){
+      this.push = function(attrs) {
         attributeStack.push(attrs);
       };
 
-      this.previous = function(){
-        return attributeStack[attributeStack.length -1];
+      this.previous = function() {
+        return attributeStack[attributeStack.length - 1];
       };
       
       this.pop = function(restoreConfig) {
@@ -172,7 +177,7 @@
         return oldAttrs;
       };
 
-      this.rewind = function(){
+      this.rewind = function() {
         var oldAttrs = attributeStack[0];
         initialize();
         return oldAttrs;
@@ -187,6 +192,7 @@
         VALUE_UPDATED: 'updated',
         VALUE_DELETED: 'deleted',
         VALUE_UNCHANGED: 'unchanged',
+
         map: function(obj1, obj2) {
           if (_.isFunction(obj1) || _.isFunction(obj2)) {
             throw 'Invalid argument. Function given, object expected.';
@@ -221,6 +227,7 @@
 
           return diff;
         },
+
         compareValues: function(value1, value2) {
           if (value1 === value2) {
             return this.VALUE_UNCHANGED;
@@ -234,6 +241,7 @@
 
           return this.VALUE_UPDATED;
         },
+        
         isValue: function(obj) {
           return !_.isObject(obj) && !_.isArray(obj);
         }
